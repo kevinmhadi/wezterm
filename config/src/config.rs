@@ -870,6 +870,9 @@ pub struct Config {
     #[dynamic(default = "default_true")]
     pub allow_download_protocols: bool,
 
+    #[dynamic(default)]
+    pub allow_osc52_clipboard_read: bool,
+
     #[dynamic(default = "default_true")]
     pub allow_win32_input_mode: bool,
 

@@ -838,11 +838,14 @@ impl WindowOps for Window {
     }
 
     fn get_clipboard(&self, _clipboard: Clipboard) -> Future<String> {
-        Future::result(
-            ClipboardContext::new()
-                .read()
-                .map_err(|e| anyhow!("Failed to get clipboard:{}", e)),
-        )
+        // OSC 52 queries may read on a worker thread without an AppKit pool.
+        objc::rc::autoreleasepool(|| {
+            Future::result(
+                ClipboardContext::new()
+                    .read()
+                    .map_err(|e| anyhow!("Failed to get clipboard:{}", e)),
+            )
+        })
     }
 
     fn set_clipboard(&self, _clipboard: Clipboard, text: String) {

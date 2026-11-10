@@ -789,7 +789,12 @@ impl<'a> Performer<'a> {
                 let selection = selection_to_selection(selection);
                 self.set_clipboard_contents(selection, None).ok();
             }
-            OperatingSystemCommand::QuerySelection(_) => {}
+            OperatingSystemCommand::QuerySelection(selection) => {
+                let selection = selection_to_selection(selection);
+                if let Some(handler) = self.alert_handler.as_mut() {
+                    handler.alert(Alert::ClipboardQuery(selection));
+                }
+            }
             OperatingSystemCommand::SetSelection(selection, selection_data) => {
                 let selection = selection_to_selection(selection);
                 match self.set_clipboard_contents(selection, Some(selection_data)) {

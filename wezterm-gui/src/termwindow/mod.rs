@@ -1201,6 +1201,12 @@ impl TermWindow {
             }
             TermWindowNotif::MuxNotification(n) => match n {
                 MuxNotification::Alert {
+                    alert: Alert::ClipboardQuery(selection),
+                    pane_id,
+                } => {
+                    self.read_clipboard_for_osc52(pane_id, selection);
+                }
+                MuxNotification::Alert {
                     alert: Alert::SetUserVar { name, value },
                     pane_id,
                 } => {
@@ -1467,6 +1473,7 @@ impl TermWindow {
                     | Alert::IconTitleChanged(_)
                     | Alert::Progress(_)
                     | Alert::SetUserVar { .. }
+                    | Alert::ClipboardQuery(_)
                     | Alert::Bell,
             }
             | MuxNotification::PaneFocused(pane_id)
