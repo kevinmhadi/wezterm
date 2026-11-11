@@ -23,7 +23,7 @@ As features stabilize some brief notes about them will accumulate here.
 
 #### Changed
 * Added opt-in, asynchronous OSC 52 clipboard queries, including mux domains.
-  Set `allow_osc52_clipboard_read = true` in the GUI configuration to enable;
+  Set [`allow_osc52_clipboard_read = true`](config/lua/config/allow_osc52_clipboard_read.md) in the GUI configuration to enable;
   reads are disabled by default. See [clipboard query security and usage](escape-sequences.md#osc-52-clipboard-queries).
   [#2050](https://github.com/wezterm/wezterm/issues/2050). The mux codec version is now 47.
 * fonts: Default dim/bold text now looks more contrasting, see #8049 for examples.

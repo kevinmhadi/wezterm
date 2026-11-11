@@ -408,17 +408,9 @@ The table below is keyed by the OSC code.
 
 {{since('nightly')}}
 
-Clipboard reads are disabled by default. To allow applications to read the
-system clipboard, add this to your configuration:
-
-```lua
-config.allow_osc52_clipboard_read = true
-```
-
-**Security:** Any program able to write escape sequences to a pane in an enabled
-window can read the clipboard without a prompt, including remote programs over
-SSH and content printed by commands such as `cat`. Enable this only for trusted
-sessions. Clipboard writes and user-initiated paste actions are unaffected.
+Clipboard reads are disabled by default. See
+[`allow_osc52_clipboard_read`](config/lua/config/allow_osc52_clipboard_read.md)
+for configuration examples, SSH/mux setup, and security implications.
 
 An application sends `OSC 52 ; c ; ? ST` to query the clipboard, or uses `p`
 instead of `c` to query the primary selection. As with clipboard writes, an
