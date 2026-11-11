@@ -42,6 +42,46 @@ $ cargo run --release --bin wezterm -- start
 **If you get an error about zlib then you most likely didn't initialize the submodules;
 take a closer look at the instructions!**
 
+### Building a macOS app bundle
+
+From a Git checkout, run:
+
+```console
+$ ./ci/build-macos.sh
+```
+
+Run the same command after pulling changes or editing the source. It updates
+submodules to the revisions recorded in your checkout and incrementally builds
+the current source in release mode for your Mac's architecture (Apple Silicon
+or Intel, not a universal binary). You can invoke the script from any directory.
+
+Prerequisites: Rust/Cargo, CMake, pkg-config, and Xcode Command Line Tools. With
+Homebrew, install the build tools using `brew install rust cmake pkg-config`;
+install Apple's tools with `xcode-select --install` if needed. The build script
+does not install dependencies itself.
+
+Outputs:
+
+* `target/macos/WezTerm.app`
+* `target/macos/WezTerm-macos.zip`
+
+The bundle includes the GUI, CLI, mux server, shell integration, completions,
+and terminfo. It uses bundled libgit2 rather than Homebrew's shared library and
+checks that the executables depend only on macOS system libraries. The app is
+ad-hoc signed for local use, **not Apple-notarized**.
+
+Each successful run replaces the previous generated app and ZIP. Quit a running
+copy of that generated app before rebuilding. Your installed app and
+`wezterm.lua` are not changed; copy the generated app to Applications yourself
+if desired. To launch it directly from the checkout:
+
+```console
+$ open target/macos/WezTerm.app
+```
+
+For OSC 52 clipboard reads, see
+[`allow_osc52_clipboard_read`](../config/lua/config/allow_osc52_clipboard_read.md).
+
 ### Building without Wayland support on Unix systems
 
 By default, support for both X11 and Wayland is included on Unix systems.
