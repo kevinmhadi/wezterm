@@ -41,6 +41,7 @@ fn main() {
         // Obtain the writer.
         // When the writer is dropped, EOF will be sent to
         // the program that was spawned.
+        // On Unix this requires canonical input with EOF enabled.
         // It is important to take the writer even if you don't
         // send anything to its stdin so that EOF can be
         // generated, otherwise you risk deadlocking yourself.
