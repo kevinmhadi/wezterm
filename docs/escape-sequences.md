@@ -396,13 +396,40 @@ The table below is keyed by the OSC code.
 |10 |Set Default Text Foreground Color| | `\x1b]10;#ff0000\x1b\\`.<br/> Also supports RGBA in nightly builds: `printf "\e]10;rgba(127,127,127,0.4)\x07"` |
 |11 |Set Default Text Background Color| | `\x1b]11;#0000ff\x1b\\`.<br/> Also supports RGBA in nightly builds: `printf "\e]11;rgba:efff/ecff/f4ff/d000\x07"` |
 |12 |Set Text Cursor Color| | `\x1b]12;#00ff00\x1b\\`.<br/> Also supports RGBA in nightly builds. |
-|52 |Manipulate clipboard | Requests to query the clipboard are ignored. Allows setting or clearing the clipboard | |
+|52 |Manipulate clipboard | Allows setting or clearing the clipboard. Queries require `allow_osc52_clipboard_read = true`; see [OSC 52 clipboard queries](#osc-52-clipboard-queries). | `\x1b]52;c;?\x1b\\` |
 |104|ResetColors | Reset color palette entries to their default values | |
 |133|FinalTerm semantic escapes| Informs the terminal about Input, Output and Prompt regions on the display | [See Shell Integration](shell-integration.md) |
 |777|Call rxvt extension| Only the notify extension is supported; it shows a "toast" notification | `printf "\e]777;notify;%s;%s\e\\" "title" "body"` |
 |1337 |iTerm2 File Upload Protocol | Allows displaying images inline | [See iTerm Image Protocol](imgcat.md) |
 |L  |Set Icon Name (Sun) | Same as OSC 1 | `\x1b]Ltab-title\x1b\\` |
 |l  |Set Window Title (Sun) | Same as OSC 2 | `\x1b]lwindow-title\x1b\\` |
+
+#### OSC 52 clipboard queries
+
+{{since('nightly')}}
+
+Clipboard reads are disabled by default. See
+[`allow_osc52_clipboard_read`](config/lua/config/allow_osc52_clipboard_read.md)
+for configuration examples, SSH/mux setup, and security implications.
+
+An application sends `OSC 52 ; c ; ? ST` to query the clipboard, or uses `p`
+instead of `c` to query the primary selection. As with clipboard writes, an
+empty selector and other accepted selectors fall back to the clipboard.
+On macOS and Windows, primary selection uses the system clipboard too.
+
+WezTerm replies asynchronously to the requesting pane with
+`OSC 52 ; c ; BASE64 ST` (or `p` for primary selection). The base64 payload
+contains the clipboard text; an empty text clipboard produces an empty payload.
+Replies use `ST` even if the request used `BEL`, and are not bracketed pastes.
+Disabled requests and failed clipboard reads produce no reply, so applications
+should use a timeout when waiting for a response.
+
+For a mux domain, enable the setting in the GUI client's configuration, not
+just on the server. The client window's effective setting is checked both before
+reading and before sending the result. A pane must belong to that window; a
+detached pane cannot read from an unrelated window. Multiple attached GUI clients
+that enable reads may each respond with their own clipboard. Mux client and server
+must both use a build supporting clipboard queries (codec version 47).
 
 # Additional Resources
 

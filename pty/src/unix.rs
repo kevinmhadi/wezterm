@@ -384,8 +384,8 @@ impl MasterPty for UnixMasterPty {
 }
 
 /// Represents the master end of a pty.
-/// EOT will be sent, and then the file descriptor will be closed when
-/// the Pty is dropped.
+/// On drop, sends EOF if canonical input and its EOF character are enabled,
+/// then closes the file descriptor.
 struct UnixMasterWriter {
     fd: PtyFd,
 }
@@ -394,10 +394,12 @@ impl Drop for UnixMasterWriter {
     fn drop(&mut self) {
         let mut t: libc::termios = unsafe { std::mem::MaybeUninit::zeroed().assume_init() };
         if unsafe { libc::tcgetattr(self.fd.0.as_raw_fd(), &mut t) } == 0 {
-            // EOF is only interpreted after a newline, so if it is set,
-            // we send a newline followed by EOF.
+            // VEOF is only interpreted in canonical mode. In raw mode these
+            // bytes would be passed through to the application as input.
+            // Finish any pending line first so that VEOF produces a zero-length
+            // read rather than just making the pending input available.
             let eot = t.c_cc[libc::VEOF];
-            if eot != 0 {
+            if t.c_lflag & libc::ICANON != 0 && eot != libc::_POSIX_VDISABLE {
                 let _ = self.fd.0.write_all(&[b'\n', eot]);
             }
         }
@@ -410,5 +412,81 @@ impl Write for UnixMasterWriter {
     }
     fn flush(&mut self) -> Result<(), io::Error> {
         self.fd.flush()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn pty_with_eof(canonical: bool, eof: libc::cc_t) -> (UnixMasterPty, UnixSlavePty) {
+        let (master, mut slave) = openpty(PtySize::default()).unwrap();
+        let mut t: libc::termios = unsafe { mem::zeroed() };
+        assert_eq!(unsafe { libc::tcgetattr(slave.fd.as_raw_fd(), &mut t) }, 0);
+        unsafe { libc::cfmakeraw(&mut t) };
+        if canonical {
+            t.c_lflag |= libc::ICANON;
+        }
+        t.c_cc[libc::VEOF] = eof;
+        assert_eq!(
+            unsafe { libc::tcsetattr(slave.fd.as_raw_fd(), libc::TCSANOW, &t) },
+            0
+        );
+        slave.fd.set_non_blocking(true).unwrap();
+        (master, slave)
+    }
+
+    fn read_input(slave: &mut UnixSlavePty, buf: &mut [u8]) -> usize {
+        let mut pfd = [filedescriptor::pollfd {
+            fd: slave.fd.as_raw_fd(),
+            events: filedescriptor::POLLIN,
+            revents: 0,
+        }];
+        assert_eq!(
+            filedescriptor::poll(&mut pfd, Some(Duration::from_secs(5))).unwrap(),
+            1,
+            "timed out waiting for PTY input or EOF"
+        );
+        slave.fd.read(buf).unwrap()
+    }
+
+    #[test]
+    fn writer_drop_finishes_pending_line_and_sends_canonical_eof() {
+        // Use a non-default EOF character to ensure we honor the tty settings.
+        let (master, mut slave) = pty_with_eof(true, b'\x05');
+        let mut writer = master.take_writer().unwrap();
+        writer.write_all(b"pending").unwrap();
+        drop(writer);
+
+        let mut buf = [0; 32];
+        let len = read_input(&mut slave, &mut buf);
+        assert_eq!(&buf[..len], b"pending\n");
+        // The master is still open: this must be VEOF, not a hangup.
+        assert_eq!(read_input(&mut slave, &mut buf), 0);
+    }
+
+    #[test]
+    fn writer_drop_does_not_inject_raw_input() {
+        let (mut master, mut slave) = pty_with_eof(false, b'\x04');
+        drop(master.take_writer().unwrap());
+
+        // A subsequent write orders the read after any bytes injected by drop.
+        master.fd.write_all(b"input\n").unwrap();
+        let mut buf = [0; 32];
+        let len = read_input(&mut slave, &mut buf);
+        assert_eq!(&buf[..len], b"input\n");
+    }
+
+    #[test]
+    fn writer_drop_does_not_inject_disabled_eof() {
+        // On macOS/BSD the disabled value is 0xff (octal 377), not zero.
+        let (mut master, mut slave) = pty_with_eof(true, libc::_POSIX_VDISABLE);
+        drop(master.take_writer().unwrap());
+
+        master.fd.write_all(b"input\n").unwrap();
+        let mut buf = [0; 32];
+        let len = read_input(&mut slave, &mut buf);
+        assert_eq!(&buf[..len], b"input\n");
     }
 }

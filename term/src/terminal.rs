@@ -71,6 +71,9 @@ pub enum Alert {
     OutputSinceFocusLost,
     /// A change to the progress bar state
     Progress(Progress),
+    /// Request an asynchronous OSC 52 response from the clipboard-owning frontend.
+    /// The frontend must enforce its clipboard-read policy before replying.
+    ClipboardQuery(ClipboardSelection),
 }
 
 pub trait AlertHandler: Send + Sync {
